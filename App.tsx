@@ -11,7 +11,7 @@ import { SourceExplorer } from './components/SourceExplorer';
 const App = () => {
   useEffect(() => {
     const loader = document.getElementById('loading-screen');
-    setTimeout(() => { if(loader) loader.style.display = 'none'; }, 2000);
+    if (loader) setTimeout(() => { loader.style.display = 'none'; }, 2000);
   }, []);
 
   return (

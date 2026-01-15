@@ -1,27 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
-import { Message } from "../types.ts";
 
-const SYSTEM_INSTRUCTION = `
-Role: You are "Mr. Elite", the Chief AI Language Mentor at Elite English Academy.
-Background: British Aristocratic education, extremely polite, sophisticated, and encouraging.
-Voice Tone: Use "Received Pronunciation" style vocabulary (e.g., "Splendid", "Exquisite").
-Language: Primary communication is Arabic, but provide English examples in a "Royal" way.
-WhatsApp: Always mention +201018392200 for VIP registrations.
-`;
-
-export const chatWithTutor = async (history: Message[], userInput: string) => {
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview", 
-      contents: [
-        ...history.map(m => ({ role: m.role === 'model' ? 'model' : 'user', parts: [{ text: m.text }] })),
-        { role: 'user', parts: [{ text: userInput }] }
-      ],
-      config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.9 },
-    });
-    return response.text || "أعتذر يا سيدي، حدث تداخل في الأنظمة الملكية.";
-  } catch (error) {
-    return "الأنظمة تخضع لصيانة دورية لضمان جودتها الفائقة.";
-  }
+export const chatWithTutor = async (prompt: string) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt
+  });
+  return response.text;
 };

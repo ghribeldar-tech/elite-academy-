@@ -1,3 +1,32 @@
-/* تنسيقات الفخامة النهائية */
-body { ... }
+/* Elite Academy - Imperial Master Style */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Tajawal:wght@200;300;400;500;700;900&display=swap');
+
+:root {
+  --elite-gold: #D4AF37;
+  --elite-dark: #020617;
+}
+
+body {
+  background-color: var(--elite-dark);
+  font-family: 'Tajawal', sans-serif;
+  overflow-x: hidden;
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #F9E498 0%, #D4AF37 50%, #854D0E 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.01);
+  backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--elite-gold);
+  border-radius: 10px;
 }

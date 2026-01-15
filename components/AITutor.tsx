@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { chatWithTutor } from '../services/geminiService.ts';
+import { chatWithTutor } from '../services/geminiservice.ts';
 import { Crown, Send, User, Bot, ShieldCheck } from 'lucide-react';
 import { Message, Session } from '../types.ts';
 

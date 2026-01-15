@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#020617" />
     <title>Elite Academy | أكاديمية النخبة</title>
     <link rel="stylesheet" href="/style.css" />
@@ -10,28 +10,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: { elite: { gold: '#D4AF37', goldLight: '#F9E498', dark: '#020617' } },
-            fontFamily: { cinzel: ['Cinzel', 'serif'], tajawal: ['Tajawal', 'sans-serif'] }
-          }
-        }
-      }
-    </script>
   </head>
   <body class="bg-[#020617] antialiased">
-    <div id="loading-screen" class="fixed inset-0 bg-[#020617] z-[9999] flex flex-col items-center justify-center transition-all duration-1000">
-      <div class="relative w-32 h-32 mb-10">
-        <div class="absolute inset-0 border-[3px] border-elite-gold/10 rounded-full scale-125 animate-pulse"></div>
-        <div class="absolute inset-0 border-t-[3px] border-elite-gold rounded-full animate-spin"></div>
-        <div class="absolute inset-0 flex items-center justify-center">
-          <span class="text-elite-gold font-cinzel font-black text-3xl">E</span>
-        </div>
-      </div>
-      <h1 class="text-[10px] font-cinzel font-black tracking-[1.5em] text-white/40 uppercase">Elite English Academy</h1>
-    </div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

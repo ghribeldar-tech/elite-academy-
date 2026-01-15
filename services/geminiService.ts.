@@ -9,7 +9,7 @@ export const chatWithTutor = async (history: Message[], userInput: string) => {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [
-        ...history.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+        ...history.map(m => ({ role: m.role === 'model' ? 'model' : 'user', parts: [{ text: m.text }] })),
         { role: 'user', parts: [{ text: userInput }] }
       ],
       config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 },

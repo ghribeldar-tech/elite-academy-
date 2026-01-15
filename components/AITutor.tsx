@@ -1,9 +1,16 @@
-import { chatWithTutor } from '../services/geminiService'; // Fixed Casing
+import React, { useState } from 'react';
+import { chatWithTutor } from '../services/geminiService';
+import { Crown, Send, User } from 'lucide-react';
 
 export const AITutor = () => {
+  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState([]);
+
   const handleSend = async () => {
-    // Exact casing match in import ensures Vercel Build success.
     const response = await chatWithTutor(messages, input);
+    setMessages([...messages, { role: 'user', text: input }, { role: 'model', text: response }]);
+    setInput('');
   };
-  return (/* Luxury UI Components */);
+
+  return (/* UI Logic */);
 };

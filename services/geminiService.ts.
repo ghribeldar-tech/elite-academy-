@@ -1,6 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { Message } from "../types";
 
+const SYSTEM_INSTRUCTION = "Role: Mr. Elite English Mentor.";
+
 export const chatWithTutor = async (history: Message[], userInput: string) => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -10,13 +12,10 @@ export const chatWithTutor = async (history: Message[], userInput: string) => {
         ...history.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
         { role: 'user', parts: [{ text: userInput }] }
       ],
-      config: { 
-        systemInstruction: "You are Mr. Elite, an Imperial Mentor.",
-        temperature: 0.7 
-      },
+      config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 },
     });
     return response.text;
-  } catch (e) {
-    return "Error Protocol Initiated.";
+  } catch (error) {
+    return "System error.";
   }
 };

@@ -1,6 +1,6 @@
 // كود مولد نصوص السوشيال ميديا
 import React, { useState } from 'react';
-import { generateMarketingAd } from '../services/geminiService';
+import { generateMarketingAd } from '../services/geminiservice.ts';
 
 export const SocialMediaKit: React.FC = () => {
   const [text, setText] = useState("");

@@ -14,7 +14,7 @@ export const chatWithTutor = async (history: Message[], userInput: string) => {
       ],
       config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.7 },
     });
-    return response.text;
+    return response.text || "أعتذر يا سيدي.";
   } catch (error) {
     return "عذراً سيدي، النظام قيد الصيانة.";
   }

@@ -6,6 +6,7 @@ import { Features } from './components/Features';
 import { CourseLevels } from './components/CourseLevels';
 import { ContactBar } from './components/ContactBar';
 import { AdPromotion } from './components/AdPromotion';
+import { SocialMediaKit } from './components/SocialMediaKit';
 import { SourceExplorer } from './components/SourceExplorer';
 
 const App = () => {
@@ -25,7 +26,10 @@ const App = () => {
       <Hero />
       <Features />
       <CourseLevels />
-      <AITutor />
+      <div className="max-w-7xl mx-auto px-6 py-20">
+        <AITutor />
+      </div>
+      <SocialMediaKit />
       <AdPromotion />
       <ContactBar />
       <SourceExplorer />

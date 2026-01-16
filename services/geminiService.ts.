@@ -19,3 +19,17 @@ export const chatWithTutor = async (history: Message[], userInput: string) => {
     return "عذراً سيدي، النظام قيد الصيانة.";
   }
 };
+
+export const generateMarketingAd = async (platform: string) => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Write a luxury marketing ad for "Elite English Academy" targeting ${platform}. `,
+      config: { systemInstruction: "You are a luxury marketing expert.", temperature: 0.8 },
+    });
+    return response.text || "";
+  } catch (error) {
+    return "Error generating ad.";
+  }
+};

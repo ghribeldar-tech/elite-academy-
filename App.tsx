@@ -11,11 +11,16 @@ import { SourceExplorer } from './components/SourceExplorer';
 const App = () => {
   useEffect(() => {
     const loader = document.getElementById('loading-screen');
-    if (loader) setTimeout(() => { loader.style.display = 'none'; }, 2000);
+    if (loader) {
+      setTimeout(() => {
+        loader.classList.add('opacity-0');
+        setTimeout(() => loader.style.display = 'none', 1000);
+      }, 2000);
+    }
   }, []);
 
   return (
-    <div className="bg-[#020617] text-white" dir="rtl">
+    <div className="bg-[#020617] text-white min-h-screen" dir="rtl">
       <Navbar />
       <Hero />
       <Features />

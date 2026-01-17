@@ -1,8 +1,7 @@
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const chatWithTutor = async (history: any[], input: string) => {
   try {
-    // استدعاء المفتاح من بيئة Vite
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     
     if (!apiKey) {
@@ -11,20 +10,17 @@ export const chatWithTutor = async (history: any[], input: string) => {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // استخدام نموذج Gemini 1.5 Flash السريع والمستقر
+    // استخدام نموذج Gemini 1.5 Flash
     const model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash" 
     });
 
     const result = await model.generateContent(input);
     const response = await result.response;
-    const text = response.text();
-    
-    return text;
+    return response.text();
 
   } catch (error) {
-    console.error("AI System Error:", error);
-    // الرسالة التي ستظهر للمستخدم في حال فشل الاتصال فعلياً
+    console.error("AI Error:", error);
     return "عذراً سيدي، واجهت مشكلة في الاتصال بمركزي العصبي. هل يمكنك المحاولة مرة أخرى؟";
   }
 };

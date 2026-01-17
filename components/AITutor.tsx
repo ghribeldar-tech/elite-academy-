@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithTutor } from '../services/geminiService';
-import { Crown, Send, User } from 'lucide-react';
+import { Crown, Send } from 'lucide-react';
 import { Message } from '../types';
 
 export const AITutor: React.FC = () => {

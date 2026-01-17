@@ -1,6 +1,6 @@
 // كود مولد البوسترات الإعلانية الذكي
 import React, { useState } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const AdPromotion: React.FC = () => {
   const [generatedAd, setGeneratedAd] = useState<string | null>(null);

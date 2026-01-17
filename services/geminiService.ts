@@ -5,26 +5,27 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// 1. تصدير وظيفة المحادثة (المستخدمة في AITutor)
+// 1. وظيفة المحادثة (Mr. Elite)
 export const chatWithTutor = async (history: any[], input: string) => {
   try {
     const result = await model.generateContent(input);
     const response = await result.response;
     return response.text();
-} catch (error: any) {
-    console.error("AI Error Details:", error);
-    return `عذراً، حدث خطأ: ${error.message || "لا يمكن الاتصال بجوجل"}`;
+  } catch (error: any) {
+    console.error("Chat Error:", error);
+    return "عذراً سيدي، النظام قيد الصيانة حالياً.";
   }
+};
 
-// 2. تصدير وظيفة الإعلانات (المطلوبة في SocialMediaKit)
+// 2. وظيفة الإعلانات (SocialMediaKit)
 export const generateMarketingAd = async (platform: string) => {
   try {
-    const prompt = `اكتب نص إعلاني جذاب وفاخر لمنصة ${platform} يروج لأكاديمية Elite English Academy، ركز على الجودة واللكنة البريطانية.`;
+    const prompt = `اكتب نص إعلاني جذاب لـ ${platform} يروج لأكاديمية Elite English Academy.`;
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Ad Error:", error);
-    return "فشل في توليد النص الإعلاني حالياً.";
+    return "فشل في توليد النص حالياً.";
   }
 };

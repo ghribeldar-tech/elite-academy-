@@ -11,11 +11,10 @@ export const chatWithTutor = async (history: any[], input: string) => {
     const result = await model.generateContent(input);
     const response = await result.response;
     return response.text();
-  } catch (error) {
-    console.error("Chat Error:", error);
-    return "عذراً سيدي، النظام قيد الصيانة حالياً.";
+} catch (error: any) {
+    console.error("AI Error Details:", error);
+    return `عذراً، حدث خطأ: ${error.message || "لا يمكن الاتصال بجوجل"}`;
   }
-};
 
 // 2. تصدير وظيفة الإعلانات (المطلوبة في SocialMediaKit)
 export const generateMarketingAd = async (platform: string) => {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { chatWithTutor } from '../services/geminiService';
+import { chatWithTutor } from '@/services/geminiService';
 import { Crown, Send } from 'lucide-react';
 import { Message } from '../types';
 

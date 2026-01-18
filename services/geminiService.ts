@@ -12,12 +12,12 @@ export const chatWithTutor = async (history: any[], input: string) => {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // استخدام أحدث موديل متاح حالياً: Gemini 2.0 Flash
+    // استخدمنا gemini-1.5-flash النسخة المستقرة والأكثر توفراً
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp" 
+      model: "gemini-1.5-flash" 
     });
 
-    // تنظيف التاريخ لضمان أن البداية من المستخدم (User)
+    // تنظيف التاريخ
     const cleanHistory = history
       .filter((msg, index) => !(index === 0 && msg.role === 'model'))
       .map(msg => ({
@@ -29,7 +29,6 @@ export const chatWithTutor = async (history: any[], input: string) => {
       history: cleanHistory,
       generationConfig: {
         maxOutputTokens: 1000,
-        temperature: 0.7,
       },
     });
 
@@ -39,12 +38,10 @@ export const chatWithTutor = async (history: any[], input: string) => {
 
   } catch (error: any) {
     console.error("AI Error:", error);
-    
-    // إذا لم يعمل الـ 2.0 في منطقتك، سنعود تلقائياً للـ 1.5 المستقر
-    if (error.message.includes("404") || error.message.includes("not found")) {
-       return "عذراً سيدي، الموديل الأحدث غير متاح في منطقتك حالياً. يرجى محاولة تحديث الصفحة أو التواصل مع الدعم.";
+    // لو ظهر خطأ الزحمة تاني، هنقول للمستخدم ينتظر ثواني
+    if (error.message.includes("429")) {
+      return "عذراً سيدي، هناك ضغط كبير على خوادم الذكاء الاصطناعي حالياً. يرجى المحاولة بعد 30 ثانية.";
     }
-    
     return `عذراً سيدي، واجهت مشكلة تقنية: ${error.message}`;
   }
 };
@@ -53,7 +50,7 @@ export const generateMarketingAd = async (platform: string) => {
   try {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     const result = await model.generateContent(`Create a luxury marketing ad for ${platform} for Elite English Academy.`);
     return result.response.text();
   } catch (e) {

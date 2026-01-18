@@ -4,7 +4,7 @@ const SYSTEM_INSTRUCTION = `
 You are "Mr. Elite", the Lead AI Tutor at Elite English Academy. 
 Tone: Sophisticated, professional, British flair. Use polite forms.
 Your mission: Help students master RP (Received Pronunciation) and professional English.
-Respond in Arabic ONLY if the user asks for translation, otherwise speak English.
+Always respond in English. If the user asks for translation, use Arabic.
 `;
 
 export const chatWithTutor = async (history: any[], input: string) => {
@@ -12,19 +12,14 @@ export const chatWithTutor = async (history: any[], input: string) => {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
     const genAI = new GoogleGenerativeAI(apiKey);
     
+    // استخدام أحدث موديل متاح حالياً: Gemini 2.0 Flash
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      systemInstruction: SYSTEM_INSTRUCTION, 
+      model: "gemini-2.0-flash-exp" 
     });
 
-    // التعديل السحري هنا:
-    // نقوم بتصفية التاريخ لضمان أن أول رسالة تذهب لجوجل هي من الـ user
+    // تنظيف التاريخ لضمان أن البداية من المستخدم (User)
     const cleanHistory = history
-      .filter((msg, index) => {
-        // نتجاهل أول رسالة إذا كانت من الـ model (رسالة الترحيب)
-        if (index === 0 && msg.role === 'model') return false;
-        return true;
-      })
+      .filter((msg, index) => !(index === 0 && msg.role === 'model'))
       .map(msg => ({
         role: msg.role === 'model' ? 'model' : 'user',
         parts: [{ text: msg.text }],
@@ -32,6 +27,10 @@ export const chatWithTutor = async (history: any[], input: string) => {
 
     const chat = model.startChat({
       history: cleanHistory,
+      generationConfig: {
+        maxOutputTokens: 1000,
+        temperature: 0.7,
+      },
     });
 
     const result = await chat.sendMessage(input);
@@ -40,6 +39,12 @@ export const chatWithTutor = async (history: any[], input: string) => {
 
   } catch (error: any) {
     console.error("AI Error:", error);
+    
+    // إذا لم يعمل الـ 2.0 في منطقتك، سنعود تلقائياً للـ 1.5 المستقر
+    if (error.message.includes("404") || error.message.includes("not found")) {
+       return "عذراً سيدي، الموديل الأحدث غير متاح في منطقتك حالياً. يرجى محاولة تحديث الصفحة أو التواصل مع الدعم.";
+    }
+    
     return `عذراً سيدي، واجهت مشكلة تقنية: ${error.message}`;
   }
 };
@@ -48,10 +53,10 @@ export const generateMarketingAd = async (platform: string) => {
   try {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(`Write a luxury ad for ${platform} for Elite English Academy.`);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const result = await model.generateContent(`Create a luxury marketing ad for ${platform} for Elite English Academy.`);
     return result.response.text();
   } catch (e) {
-    return "فشل التوليد.";
+    return "فشل النظام في التوليد.";
   }
 };

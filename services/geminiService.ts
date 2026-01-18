@@ -1,47 +1,58 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 export const chatWithTutor = async (history: any[], input: string) => {
   try {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-    if (!apiKey) return "Error: API Key is missing in Vercel.";
+    if (!apiKey) return "خطأ: المفتاح مفقود في إعدادات Vercel.";
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // استخدمنا هذا المسمى الدقيق gemini-1.5-flash
-    // وهو الموديل الذي يمتلك أعلى حصة مجانية (Free Tier) حالياً
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // التعليمات البرمجية لـ Mr. Elite
+    const systemInstruction = "You are Mr. Elite, a sophisticated British AI Tutor. Speak English primarily.";
 
-    // إرسال سؤال المستخدم مباشرة مع تعليمات الشخصية
-    const prompt = `You are Mr. Elite, a sophisticated British AI Tutor. Respond to this: ${input}`;
+    // الاتصال المباشر برابط جوجل المستقر (v1) لتجنب خطأ 404
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          { role: "user", parts: [{ text: systemInstruction }] },
+          { role: "model", parts: [{ text: "Understood. I am ready to assist as Mr. Elite." }] },
+          ...history.map(msg => ({
+            role: msg.role === "model" ? "model" : "user",
+            parts: [{ text: msg.text }]
+          })),
+          { role: "user", parts: [{ text: input }] }
+        ]
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      if (data.error.status === "RESOURCE_EXHAUSTED") return "عذراً سيدي، السيرفر مزدحم حالياً. حاول ثانية بعد دقيقة.";
+      return `خطأ من جوجل: ${data.error.message}`;
+    }
+
+    return data.candidates[0].content.parts[0].text;
 
   } catch (error: any) {
-    console.error("AI Error:", error);
-    
-    // إذا ظهر خطأ الـ 429 (الزحمة) مرة أخرى، سنطلب من المستخدم الصبر ثوانٍ
-    if (error.message.includes("429")) {
-      return "عذراً سيدي، هناك ضغط مؤقت على النظام. سأرد عليك خلال 30 ثانية، يرجى إعادة إرسال رسالتك.";
-    }
-    
-    // إذا ظهر الـ 404، سنقوم بإرشادك للخطوة الأخيرة في الإعدادات
-    if (error.message.includes("404")) {
-      return "خطأ 404: جوجل لا تجد الموديل. يرجى التأكد من تفعيل 'Generative Language API' في Google Cloud Console للمشروع المرتبط بهذا المفتاح.";
-    }
-
     return `عذراً سيدي، واجهت مشكلة تقنية: ${error.message}`;
   }
 };
 
 export const generateMarketingAd = async (platform: string) => {
+  // نفس المنطق للإعلانات
+  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   try {
-    const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(`Create a luxury ad for ${platform}`);
-    return result.response.text();
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `Create a luxury ad for ${platform} for Elite English Academy` }] }]
+      })
+    });
+    const data = await res.json();
+    return data.candidates[0].content.parts[0].text;
   } catch (e) {
     return "فشل التوليد.";
   }

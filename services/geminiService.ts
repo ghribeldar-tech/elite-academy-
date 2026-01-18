@@ -1,29 +1,50 @@
-// Final Reset Build - Version 3.0
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// وظيفة المدرس (Mr. Elite)
 export const chatWithTutor = async (history: any[], input: string) => {
   try {
-    const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-    // السطر ده هو اللي هيعرفنا هل المفتاح الجديد (B7Q) وصل ولا لأ
+    const rawKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+    const apiKey = rawKey.trim();
+    
+    // Hint للتأكد من المفتاح في الموقع
     const keyHint = apiKey ? apiKey.slice(-4) : "NONE";
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    if (!apiKey) return "خطأ: المفتاح مفقود في إعدادات Vercel.";
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          { role: "user", parts: [{ text: "You are Mr. Elite AI." }] },
-          { role: "model", parts: [{ text: "Ready." }] },
-          { role: "user", parts: [{ text: input }] }
-        ]
-      })
-    });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const data = await response.json();
-    if (data.error) return `خطأ من جوجل [المفتاح الحالي: ${keyHint}]: ${data.error.message}`;
-    if (data.candidates) return data.candidates[0].content.parts[0].text;
-    return "لا يوجد رد.";
-  } catch (err: any) {
-    return `فشل: ${err.message}`;
+    // تنظيف التاريخ لضمان البداية من user
+    const cleanHistory = history
+      .filter((msg, index) => !(index === 0 && msg.role === 'model'))
+      .map(msg => ({
+        role: msg.role === 'model' ? 'model' : 'user',
+        parts: [{ text: msg.text }],
+      }));
+
+    const chat = model.startChat({ history: cleanHistory });
+    const result = await chat.sendMessage(input);
+    const response = await result.response;
+    return response.text();
+
+  } catch (error: any) {
+    console.error(error);
+    const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
+    const keyHint = apiKey ? apiKey.slice(-4) : "NONE";
+    return `خطأ جوجل [المفتاح الحالي: ${keyHint}]: ${error.message}`;
+  }
+};
+
+// وظيفة الإعلانات (لحل مشكلة SocialMediaKit)
+export const generateMarketingAd = async (platform: string) => {
+  try {
+    const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`اكتب إعلان جذاب لـ ${platform} يروج لأكاديمية Elite English Academy`);
+    const response = await result.response;
+    return response.text();
+  } catch (e: any) {
+    return "فشل توليد الإعلان.";
   }
 };

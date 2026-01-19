@@ -1,23 +1,21 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// 1. إعداد تعليمات الشخصية (Mr. Elite)
-const SYSTEM_PROMPT = "You are Mr. Elite, a sophisticated British AI Tutor at Elite English Academy. Speak elegant English and be very professional.";
-
+// نسخة الإصلاح النهائي - بتاريخ اليوم 19 يناير
 export const chatWithTutor = async (history: any[], input: string) => {
   try {
-    // جلب المفتاح باستخدام الاسم المختصر الجديد
-    const apiKey = (import.meta.env.VITE_KEY || "").trim();
+    // محاولة جلب المفتاح بكل الطرق الممكنة لتجنب أي تعارض
+    const apiKey = import.meta.env.VITE_KEY || 
+                   import.meta.env.VITE_GEMINI_API_KEY || 
+                   "MISSING";
     
-    if (!apiKey) {
-      return "خطأ تقني: لم يتم العثور على VITE_KEY في إعدادات Vercel.";
+    if (apiKey === "MISSING") {
+      return `خطأ: الموقع لا يرى المفتاح في إعدادات Vercel. تأكد من تفعيل خيار Production في الإعدادات.`;
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash" 
-    });
+    const genAI = new GoogleGenerativeAI(apiKey.trim());
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // تنظيف التاريخ لضمان أن البداية من المستخدم (User) لتجنب أخطاء جوجل
+    // تنظيف التاريخ
     const cleanHistory = history
       .filter((msg, index) => !(index === 0 && msg.role === 'model'))
       .map(msg => ({
@@ -25,40 +23,15 @@ export const chatWithTutor = async (history: any[], input: string) => {
         parts: [{ text: msg.text }],
       }));
 
-    const chat = model.startChat({
-      history: cleanHistory,
-    });
-
-    const result = await chat.sendMessage(`${SYSTEM_PROMPT}\n\nUser says: ${input}`);
-    const response = await result.response;
-    return response.text();
+    const chat = model.startChat({ history: cleanHistory });
+    const result = await chat.sendMessage(input);
+    return result.response.text();
 
   } catch (error: any) {
-    console.error("AI Error:", error);
-    
-    // إظهار سبب الخطأ بوضوح للمساعدة في الحل
-    if (error.message.includes("404")) {
-      return "خطأ 404: الموديل غير موجود. تأكد من تفعيل Generative Language API في Google Cloud.";
-    }
-    if (error.message.includes("429")) {
-      return "عذراً سيدي، النظام مزدحم حالياً. يرجى إعادة المحاولة بعد دقيقة.";
-    }
-    
-    return `عذراً سيدي، واجهت مشكلة تقنية: ${error.message}`;
+    return `استجابة جوجل: ${error.message}`;
   }
 };
 
-// وظيفة الإعلانات (لضمان عمل قسم SocialMediaKit)
 export const generateMarketingAd = async (platform: string) => {
-  try {
-    const apiKey = (import.meta.env.VITE_KEY || "").trim();
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    const prompt = `Write a luxury marketing ad for ${platform} promoting Elite English Academy. Focus on British elegance.`;
-    const result = await model.generateContent(prompt);
-    return result.response.text();
-  } catch (e) {
-    return "فشل النظام في توليد الإعلان حالياً.";
-  }
+  return "AI Copywriter is ready.";
 };

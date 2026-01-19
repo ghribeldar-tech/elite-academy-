@@ -1,19 +1,25 @@
 export const chatWithTutor = async (history: any[], input: string) => {
   try {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-    if (!apiKey) return "Error: API Key missing.";
+    if (!apiKey) return "خطأ: المفتاح مفقود.";
 
-    // سنستخدم المسمى "latest" وهو المسمى السحري الذي يحل مشاكل الـ 404 في مصر
-    const modelName = "gemini-1.5-flash-latest"; 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    // المسمى "gemini-1.5-flash" هو الأضمن، وسنستخدم رابط v1beta 
+    // لأنه الوحيد الذي يدعم التعليمات المتقدمة مجاناً حالياً
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: input }] }],
+        contents: [
+          // إرسال سؤال المستخدم مباشرة كرسالة أولى لتجنب خطأ الـ Role
+          { 
+            role: "user", 
+            parts: [{ text: `You are Mr. Elite, a British AI Tutor. Answer this: ${input}` }] 
+          }
+        ],
         generationConfig: {
-          maxOutputTokens: 100, // حصة صغيرة لضمان القبول
+          maxOutputTokens: 200,
           temperature: 0.7
         }
       })
@@ -21,14 +27,24 @@ export const chatWithTutor = async (history: any[], input: string) => {
 
     const data = await response.json();
 
-    // إذا نجح الرد، مبروك!
+    // فحص الاستجابة
     if (data.candidates && data.candidates[0]) {
       return data.candidates[0].content.parts[0].text;
     }
 
-    // إذا ظهر خطأ الزحمة (429) أو غيره، سنظهره لك بوضوح
     if (data.error) {
-      return `تنبيه من جوجل: ${data.error.message}`;
+      // إذا استمر الـ 404، سنقوم بمحاولة أخيرة لموديل gemini-pro (القديم المستقر)
+      if (data.error.code === 404) {
+          const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+          const fallbackRes = await fetch(fallbackUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: input }] }] })
+          });
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData.candidates) return fallbackData.candidates[0].content.parts[0].text;
+      }
+      return `تنبيه: ${data.error.message}`;
     }
 
     return "وصل رد فارغ، يرجى المحاولة مرة أخرى.";
@@ -39,5 +55,5 @@ export const chatWithTutor = async (history: any[], input: string) => {
 };
 
 export const generateMarketingAd = async (platform: string) => {
-    return "AI is ready.";
+    return "AI ready.";
 };

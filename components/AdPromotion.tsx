@@ -1,39 +1,108 @@
-// كود مولد البوسترات الإعلانية الذكي
 import React, { useState } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateMarketingAd } from '@/services/geminiService';
+import { Sparkles, Megaphone, Layout, Wand2 } from 'lucide-react';
 
-export const AdPromotion: React.FC = () => {
-  const [generatedAd, setGeneratedAd] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+export const AdPromotion = () => {
+  const [adContent, setAdContent] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [platform, setPlatform] = useState("Instagram");
 
-  const generateAd = async () => {
-    setIsGenerating(true);
+  const handleGenerate = async () => {
+    setIsLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: { parts: [{ text: "Luxury 3D Golden Logo for Elite English Academy, 4k, cinematic lighting" }] },
-        config: { imageConfig: { aspectRatio: "9:16" } }
-      });
-      const part = response.candidates[0].content.parts.find(p => p.inlineData);
-      if (part) setGeneratedAd(`data:image/png;base64,${part.inlineData.data}`);
-    } catch (e) { alert("Error generating ad"); }
-    finally { setIsGenerating(false); }
+      const result = await generateMarketingAd(platform);
+      setAdContent(result);
+    } catch (error) {
+      setAdContent("عذراً، فشل النظام في ابتكار الإعلان حالياً.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="py-20 bg-black/40 border-y border-white/5 text-center">
-      <h2 className="text-3xl font-luxury gold-gradient mb-8">AI Poster Generator</h2>
-      <div className="max-w-sm mx-auto bg-white/5 p-8 rounded-[3rem] border border-white/10">
-        {generatedAd && <img src={generatedAd} className="w-full rounded-2xl mb-6 shadow-2xl" />}
-        <button 
-          onClick={generateAd}
-          disabled={isGenerating}
-          className="w-full py-4 bg-[#D4AF37] text-black rounded-2xl font-black"
-        >
-          {isGenerating ? "Designing..." : "Generate Elite Poster"}
-        </button>
+    <section className="py-24 bg-[#050505] relative overflow-hidden">
+      <div className="max-w-5xl mx-auto px-6 relative z-10">
+        
+        {/* Header القسم */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/20 text-[#D4AF37] text-[10px] font-black uppercase tracking-widest mb-6">
+            <Sparkles size={12} /> Elite Creative Studio
+          </div>
+          <h2 className="text-4xl md:text-6xl font-serif gold-gradient-text font-black mb-6 uppercase tracking-tighter">
+            AI Ad Generator
+          </h2>
+          <p className="text-slate-500 max-w-2xl mx-auto font-light leading-relaxed">
+            ابتكر حملاتك الإعلانية الفاخرة بلمسة واحدة. مساعدك الذكي مبرمج لصياغة نصوص ترويجية تعكس رقي أكاديمية النخبة.
+          </p>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-12 items-start">
+          
+          {/* لوحة التحكم */}
+          <div className="bg-white/5 border border-white/10 p-10 rounded-[2.5rem] backdrop-blur-xl">
+            <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-3">
+              <Layout size={20} className="text-[#D4AF37]" /> إعدادات الحملة
+            </h3>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-slate-400 text-xs font-bold uppercase tracking-widest mb-3">اختر المنصة</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {["Instagram", "Facebook", "LinkedIn"].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPlatform(p)}
+                      className={`py-3 rounded-xl text-xs font-bold transition-all ${
+                        platform === p 
+                        ? 'bg-[#D4AF37] text-black shadow-[0_0_20px_rgba(212,175,55,0.3)]' 
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={handleGenerate}
+                disabled={isLoading}
+                className="w-full py-5 bg-gradient-to-r from-[#D4AF37] to-[#F9E498] text-black rounded-2xl font-black text-sm shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <Wand2 size={18} /> ابتكار الإعلان الآن
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* معاينة النتيجة */}
+          <div className="relative group">
+            <div className="absolute inset-0 bg-[#D4AF37]/5 blur-3xl rounded-full opacity-50"></div>
+            <div className="relative bg-black/60 border border-white/10 p-8 rounded-[2.5rem] min-h-[300px] flex flex-col">
+              <div className="flex items-center gap-3 mb-6 border-b border-white/5 pb-4">
+                <Megaphone size={18} className="text-[#D4AF37]" />
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ad Preview Mode</span>
+              </div>
+              
+              <div className="flex-grow text-slate-300 text-sm leading-relaxed whitespace-pre-wrap italic">
+                {adContent || "أهلاً بك سيدي. اختر المنصة واضغط على الزر لنقوم بصياغة محتوى إعلاني يليق بمستواك..."}
+              </div>
+
+              {adContent && (
+                <div className="mt-8 pt-6 border-t border-white/5 text-[9px] text-[#D4AF37] font-bold uppercase tracking-[0.2em] animate-pulse">
+                  Generated by Elite Intelligence v2.6
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
-    </div>
+    </section>
   );
 };

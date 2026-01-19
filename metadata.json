@@ -1,0 +1,8 @@
+{
+  "name": "Elite English Academy",
+  "description": "منصة تعليمية فاخرة مدعومة بالذكاء الاصطناعي لتعلم الإنجليزية بمعايير عالمية.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}

@@ -1,35 +1,35 @@
 export const chatWithTutor = async (history: any[], input: string) => {
-  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-  if (!apiKey) return "خطأ: المفتاح مفقود في Vercel.";
-
-  // سنستخدم الموديل 1.5 Flash مع "رابط خاص" يتجاوز معظم مشاكل الـ 404
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
   try {
+    const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
+    if (!apiKey) return "Error: API Key missing.";
+
+    // سنستخدم الرابط المستقر v1 مع المسمى الكامل للموديل
+    // هذا الرابط هو الأضمن لتجنب خطأ 404 في مصر
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: input }] }] // إرسال السؤال مباشرة بدون تعقيدات
+        contents: [{ role: "user", parts: [{ text: input }] }]
       })
     });
 
     const data = await response.json();
 
-    // إذا نجح الرد
+    if (data.error) {
+      // لو لسه فيه مشكلة، الكود هيقولنا السبب الحقيقي من جوجل
+      return `استجابة جوجل: [${data.error.message}]`;
+    }
+
     if (data.candidates && data.candidates[0]) {
       return data.candidates[0].content.parts[0].text;
     }
 
-    // إذا أرجع جوجل خطأ صريحاً، سنعرضه لك كما هو لنعرف السبب
-    if (data.error) {
-      return `جوجل تقول: [${data.error.message}]`;
-    }
+    return "لم يتلقَ النظام رداً، حاول مرة أخرى.";
 
-    return "وصل رد غريب من السيرفر، يرجى المحاولة مرة أخرى.";
-
-  } catch (err: any) {
-    return `فشل الاتصال بالإنترنت: ${err.message}`;
+  } catch (error: any) {
+    return `خطأ في الاتصال: ${error.message}`;
   }
 };
 

@@ -1,3 +1,58 @@
-:root { --elite-gold: #D4AF37; }
-body { background: #020617; font-family: 'Tajawal', sans-serif; }
-.gold-gradient-text { background: linear-gradient(135deg, #F9E498, #D4AF37); -webkit-background-clip: text; }
+/* أوامر تشغيل Tailwind الأساسية - ضرورية جداً للرفع */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --elite-gold: #D4AF37;
+  --elite-dark: #020617;
+}
+
+/* تنسيقات عامة للموقع */
+body {
+  background-color: var(--elite-dark);
+  color: white;
+  font-family: 'Tajawal', sans-serif;
+  margin: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* كلاس التدرج الذهبي الفاخر للنصوص */
+.gold-gradient-text {
+  background: linear-gradient(135deg, #D4AF37 0%, #F9E498 50%, #D4AF37 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* شكل البطاقات الزجاجية (Glassmorphism) */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* تخصيص شريط التمرير (Scrollbar) ليكون ذهبياً */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--elite-gold);
+  border-radius: 10px;
+}
+
+/* أنيميشن ناعم لظهور المكونات */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}

@@ -1,10 +1,10 @@
 export const chatWithTutor = async (history: any[], input: string) => {
   try {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || "").trim();
-    if (!apiKey) return "خطأ: المفتاح مفقود.";
+    if (!apiKey) return "Error: API Key missing.";
 
-    // سنستخدم الرابط المستقر v1 لأنه الأضمن للحصة المجانية (Free Tier)
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // سنستخدم الرابط الذي أثبت نجاحه في الاتصال سابقاً (v1beta)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
@@ -16,25 +16,35 @@ export const chatWithTutor = async (history: any[], input: string) => {
 
     const data = await response.json();
 
-    if (data.error) {
-      // لو لسه فيه ضغط (429)، هنطلب من المستخدم يهدأ ثواني
-      if (data.error.code === 429) {
-        return "عذراً سيدي، هناك ضغط كبير على خوادم جوجل حالياً. من فضلك انتظر 10 ثواني واضغط إرسال مرة أخرى، وسأرد عليك فوراً.";
-      }
-      return `تنبيه من جوجل: ${data.error.message}`;
-    }
-
+    // إذا نجح الرد، رجعه فوراً
     if (data.candidates && data.candidates[0]) {
       return data.candidates[0].content.parts[0].text;
     }
 
-    return "وصل رد فارغ، جرب مرة ثانية.";
+    // إذا أعطى 404 أو أي خطأ، سنقوم بمناورة أخيرة وتجربة الموديل المستقر (Pro)
+    if (data.error) {
+       const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+       const fallbackRes = await fetch(fallbackUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: input }] }] })
+       });
+       const fallbackData = await fallbackRes.json();
+       
+       if (fallbackData.candidates) {
+         return fallbackData.candidates[0].content.parts[0].text;
+       }
+       
+       return `تنبيه من جوجل: ${data.error.message}`;
+    }
+
+    return "وصل رد فارغ، يرجى المحاولة مرة أخرى.";
 
   } catch (error: any) {
-    return `خطأ اتصال: ${error.message}`;
+    return `خطأ في الاتصال: ${error.message}`;
   }
 };
 
 export const generateMarketingAd = async (platform: string) => {
-    return "AI ready.";
+    return "AI is ready.";
 };

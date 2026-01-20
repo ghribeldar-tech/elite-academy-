@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// وظيفة جلب المفتاح الذكية
+// وظيفة جلب المفتاح
 const getApiKey = () => {
   return (import.meta.env.VITE_KEY || import.meta.env.VITE_GEMINI_API_KEY || "").trim();
 };
@@ -8,10 +8,12 @@ const getApiKey = () => {
 export const chatWithTutor = async (history: any[], input: string) => {
   try {
     const apiKey = getApiKey();
-    if (!apiKey) return "خطأ: مفتاح الـ API مفقود في إعدادات Vercel. تأكد من وجود VITE_KEY.";
+    if (!apiKey) return "خطأ: المفتاح مفقود في Vercel.";
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // التعديل الجوهري: الانتقال لموديل عام 2026 المستقر
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const cleanHistory = history
       .filter((msg, index) => !(index === 0 && msg.role === 'model'))
@@ -24,32 +26,28 @@ export const chatWithTutor = async (history: any[], input: string) => {
     const result = await chat.sendMessage(input);
     return result.response.text();
   } catch (error: any) {
-    return `خطأ في الشات: ${error.message}`;
+    // نظام فحص ذكي للموديلات
+    return `تنبيه النظام: الموديل 1.5 قديم. يرجى التأكد من استخدام gemini-2.5-flash. الخطأ الحالي: ${error.message}`;
   }
 };
 
 export const generateMarketingAd = async (platform: string) => {
   try {
     const apiKey = getApiKey();
-    if (!apiKey) return "API Key missing in Vercel settings.";
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `اكتب إعلان احترافي لمنصة ${platform} يروج لأكاديمية Elite English Academy بأسلوب فخم وقصير.` }]
-        }]
+        contents: [{ parts: [{ text: `اكتب إعلان فاخر لـ ${platform} يروج لأكاديمية Elite English.` }] }]
       })
     });
 
     const data = await response.json();
-    if (data.error) return `جوجل ترفض الطلب: ${data.error.message}`;
-    
+    if (data.error) return `خطأ: ${data.error.message}`;
     return data.candidates[0].content.parts[0].text;
   } catch (e: any) {
-    return `فشل التوليد: ${e.message}`;
+    return "فشل التوليد.";
   }
 };

@@ -1,66 +1,57 @@
 import React from 'react';
-// استدعاء كافة المكونات الـ 11 من المجلد الموحد
-import { 
-  Navbar, 
-  Hero, 
-  Features, 
-  CourseLevels, 
-  AITutor, 
-  SocialMediaKit, 
-  AdPromotion, 
-  ContactBar, 
-  SourceExplorer, 
-  ProjectBlueprint, 
-  GitPushModal 
-} from './components';
 
-const App = () => {
+// استيراد المكونات بشكل مباشر لتجنب أخطاء التصدير
+// Direct imports to fix the build error
+import Hero from './components/Hero';
+import Features from './components/Features';
+import CourseLevels from './components/CourseLevels';
+import AITutor from './components/AITutor';
+import SocialMediaKit from './components/SocialMediaKit';
+import AdPromotion from './components/AdPromotion';
+
+function App() {
   return (
-    <div className="bg-[#020617] text-white min-h-screen selection:bg-[#D4AF37] selection:text-black" dir="rtl">
-      {/* شريط التنقل العلوي */}
-      <Navbar />
+    <div className="min-h-screen bg-gray-50">
+      {/* القسم الرئيسي */}
+      <Hero />
       
-      <main>
-        {/* القسم الرئيسي (العنوان والشعار) */}
-        <Hero />
+      {/* المميزات */}
+      <Features />
+      
+      {/* مستويات الكورس */}
+      <CourseLevels />
 
-        {/* قسم المميزات والأكواد الفنية */}
-        <div id="features" className="animate-in">
-          <Features />
-          <ProjectBlueprint />
-        </div>
-
-        {/* قسم المسار الأكاديمي والمستويات */}
-        <div id="levels" className="animate-in">
-          <CourseLevels />
-        </div>
-
-        {/* قسم المدرس الذكي (الذكاء الاصطناعي الرئيسي) */}
-        <div id="tutor" className="py-20 bg-gradient-to-b from-transparent to-black/20">
+      {/* قسم المدرس الذكي Mr. Elite */}
+      <section className="py-16 bg-gradient-to-b from-blue-50 to-white" id="ai-tutor">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-5xl font-serif gold-gradient-text font-black mb-4 uppercase tracking-tighter">
-              Elite AI Tutor
+            <h2 className="text-3xl font-extrabold text-[#1a237e] sm:text-4xl">
+              Talk to Mr. Elite
             </h2>
-            <p className="text-slate-500 text-sm">تحدث مع مستر إليت، مساعدك الشخصي لإتقان اللكنة البريطانية.</p>
+            <p className="mt-4 text-xl text-gray-600">
+              Your AI Personal Tutor for British English. Practice Speaking, Reading & Writing.
+            </p>
           </div>
-          <AITutor />
+          
+          {/* استدعاء مكون المدرس الذكي */}
+          <div className="max-w-4xl mx-auto">
+            <AITutor />
+          </div>
         </div>
+      </section>
 
-        {/* أدوات الترويج والسوشيال ميديا المدعومة بالذكاء الاصطناعي */}
-        <div className="bg-[#010409]/50 border-y border-white/5">
-          <SocialMediaKit />
-          <AdPromotion />
-        </div>
-      </main>
-
-      {/* شريط التواصل والفوتر */}
-      <ContactBar />
-
-      {/* أدوات المطورين العائمة (أسفل اليمين واليسار) */}
-      <SourceExplorer />
-      <GitPushModal />
+      {/* أدوات السوشيال ميديا */}
+      <SocialMediaKit />
+      
+      {/* قسم الإعلانات */}
+      <AdPromotion />
+      
+      {/* تذييل بسيط للصفحة */}
+      <footer className="bg-[#1a237e] text-white py-8 text-center">
+        <p>© 2026 Elite English Academy. All rights reserved.</p>
+      </footer>
     </div>
   );
-};
+}
 
 export default App;

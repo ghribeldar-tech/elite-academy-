@@ -1,13 +1,14 @@
 import React from 'react';
 
-// استيراد المكونات بشكل مباشر لتجنب أخطاء التصدير
-// Direct imports to fix the build error
-import Hero from './components/Hero';
-import Features from './components/Features';
-import CourseLevels from './components/CourseLevels';
+// 1. المكونات الأساسية (نضعها بين أقواس لأنها Named Exports)
+import { Hero } from './components/Hero';
+import { Features } from './components/Features';
+import { CourseLevels } from './components/CourseLevels';
+import { SocialMediaKit } from './components/SocialMediaKit';
+import { AdPromotion } from './components/AdPromotion';
+
+// 2. مكون المدرس الذكي (بدون أقواس لأنه Default Export)
 import AITutor from './components/AITutor';
-import SocialMediaKit from './components/SocialMediaKit';
-import AdPromotion from './components/AdPromotion';
 
 function App() {
   return (

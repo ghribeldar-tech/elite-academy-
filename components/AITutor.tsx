@@ -3,7 +3,7 @@ import { Send, User, Bot, Sparkles, Mic, MicOff, Plus, X, Image as ImageIcon, Vo
 import { chatWithTutor } from '../services/geminiService';
 
 interface Message {
-  id: string; // أضفنا معرف لكل رسالة للتحكم في الصوت
+  id: string;
   role: 'user' | 'model';
   text: string;
   hasAttachment?: boolean;
@@ -21,14 +21,14 @@ export default function AITutor() {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   
-  // متغيرات الصوت (Text-to-Speech)
+  // متغيرات الصوت
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const synthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   
   // متغيرات الملفات
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -37,45 +37,76 @@ export default function AITutor() {
 
   useEffect(() => {
     scrollToBottom();
-    // إيقاف الصوت عند الخروج أو تغيير الصفحة
-    return () => window.speechSynthesis.cancel();
+    return () => {
+      window.speechSynthesis.cancel();
+    };
   }, [messages, previewUrl]);
 
-  // 🔊 وظيفة نطق النص (British Accent)
+  // 🔥 دالة تقسيم النص (الحل السحري للمقاطع الطويلة)
   const speakText = (text: string, msgId: string) => {
-    // لو فيه صوت شغال، نوقفه
+    // 1. إيقاف أي صوت حالي
     if (speakingMsgId === msgId) {
       window.speechSynthesis.cancel();
       setSpeakingMsgId(null);
       return;
     }
+    window.speechSynthesis.cancel();
 
-    window.speechSynthesis.cancel(); // إيقاف أي صوت سابق
-    const utterance = new SpeechSynthesisUtterance(text);
+    // 2. تقسيم النص إلى جمل بناءً على علامات الترقيم (. ! ?)
+    // هذا يضمن أن المتصفح لا يرفض النص الطويل
+    const chunks = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
     
-    // محاولة ضبط اللكنة البريطانية
-    utterance.lang = 'en-GB'; 
-    const voices = window.speechSynthesis.getVoices();
-    // البحث عن صوت بريطاني (Google UK English Female/Male أو غيره)
-    const britishVoice = voices.find(voice => voice.lang.includes('GB') || voice.name.includes('UK'));
-    if (britishVoice) utterance.voice = britishVoice;
+    let currentChunkIndex = 0;
 
-    // سرعة ونبرة الصوت
-    utterance.rate = 0.9; // أبطأ قليلاً ليكون تعليمياً
-    utterance.pitch = 1;
+    const speakNextChunk = () => {
+      if (currentChunkIndex >= chunks.length) {
+        setSpeakingMsgId(null);
+        return;
+      }
 
-    utterance.onstart = () => setSpeakingMsgId(msgId);
-    utterance.onend = () => setSpeakingMsgId(null);
-    utterance.onerror = () => setSpeakingMsgId(null);
+      const chunk = chunks[currentChunkIndex];
+      if (!chunk.trim()) {
+        currentChunkIndex++;
+        speakNextChunk();
+        return;
+      }
 
-    window.speechSynthesis.speak(utterance);
+      const utterance = new SpeechSynthesisUtterance(chunk.trim());
+      
+      // ضبط الصوت البريطاني
+      utterance.lang = 'en-GB';
+      const voices = window.speechSynthesis.getVoices();
+      const britishVoice = voices.find(voice => voice.lang.includes('GB') || voice.name.includes('UK'));
+      if (britishVoice) utterance.voice = britishVoice;
+
+      utterance.rate = 0.9; // سرعة تعليمية
+      utterance.pitch = 1;
+
+      // عند انتهاء الجملة، شغل الجملة التالية
+      utterance.onend = () => {
+        currentChunkIndex++;
+        speakNextChunk();
+      };
+
+      // في حالة الخطأ، انتقل للتالية أيضاً
+      utterance.onerror = () => {
+        console.error("Speech Error");
+        setSpeakingMsgId(null);
+      };
+
+      synthesisRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    setSpeakingMsgId(msgId);
+    speakNextChunk();
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert("الملف كبير جداً. الحد الأقصى 5 ميجا.");
+        alert("File size too large (Max 5MB).");
         return;
       }
       setSelectedFile(file);
@@ -121,9 +152,6 @@ export default function AITutor() {
       };
       setMessages(prev => [...prev, botMessage]);
       
-      // ✨ ميزة إضافية: قراءة الرد تلقائياً (اختياري، يمكنك إلغاؤه لو مزعج)
-      // speakText(responseText, botMessage.id);
-      
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -136,12 +164,22 @@ export default function AITutor() {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      
       recognition.onstart = () => setIsListening(true);
-      recognition.onresult = (event: any) => setInput(event.results[0][0].transcript);
+      
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+      };
+      
       recognition.onend = () => setIsListening(false);
+      
+      recognition.onerror = () => setIsListening(false);
+      
       recognition.start();
     } else {
-      alert("المتصفح لا يدعم تحويل الصوت لنص.");
+      alert("Browser does not support speech recognition.");
     }
   };
 
@@ -167,15 +205,13 @@ export default function AITutor() {
           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex max-w-[85%] gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
               
-              {/* Avatar */}
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                 msg.role === 'user' ? 'bg-[#1a237e]' : 'bg-emerald-600'
               }`}>
                 {msg.role === 'user' ? <User className="w-5 h-5 text-white" /> : <Bot className="w-5 h-5 text-white" />}
               </div>
 
-              {/* Message Bubble */}
-              <div className={`group relative p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${
+              <div className={`group relative p-4 rounded-2xl shadow-sm text-sm leading-relaxed whitespace-pre-line ${
                 msg.role === 'user' 
                   ? 'bg-[#1a237e] text-white rounded-tr-none' 
                   : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none'
@@ -188,14 +224,14 @@ export default function AITutor() {
                 )}
                 {msg.text}
 
-                {/* 🔊 زر تشغيل الصوت يظهر فقط في رسائل الموديل */}
+                {/* زر الصوت يظهر للردود الآلية فقط */}
                 {msg.role === 'model' && (
                   <button
                     onClick={() => speakText(msg.text, msg.id)}
                     className={`absolute -bottom-3 -right-2 p-1.5 rounded-full shadow-md transition-all ${
                       speakingMsgId === msg.id 
                         ? 'bg-red-500 text-white animate-pulse' 
-                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 opacity-0 group-hover:opacity-100'
+                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100'
                     }`}
                     title="Read Aloud"
                   >
@@ -211,7 +247,7 @@ export default function AITutor() {
           <div className="flex justify-start">
             <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-emerald-600 animate-spin" />
-              <span className="text-xs text-gray-500 font-medium">Analyzing & Thinking...</span>
+              <span className="text-xs text-gray-500 font-medium">Analyzing...</span>
             </div>
           </div>
         )}
@@ -249,7 +285,7 @@ export default function AITutor() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={selectedFile ? "What should I do with this file?" : "Type or Speak..."}
+            placeholder={selectedFile ? "What to do with this?" : "Type or Speak..."}
             className="flex-1 p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1a237e]/20"
             disabled={isLoading}
           />

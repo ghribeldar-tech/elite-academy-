@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// تعريف أنواع البيانات لتجنب أخطاء TypeScript
+// تعريف واجهات البيانات (TypeScript Interfaces)
 interface Scenario {
   id: string;
   title: string;
@@ -10,8 +10,19 @@ interface Scenario {
 }
 
 interface Message {
-  sender: 'customer' | 'agent';
+  sender: 'customer' | 'agent' | 'system';
   text: string;
+}
+
+interface Scorecard {
+  score: number;
+  greeting: number;
+  empathy: number;
+  verification: number;
+  solution: number;
+  closing: number;
+  grammarFeedback: string;
+  generalFeedback: string;
 }
 
 const SCENARIOS: Scenario[] = [
@@ -62,13 +73,35 @@ export default function CallCenterSimulator() {
   const [selectedModel, setSelectedModel] = useState<string>(GEMINI_MODELS[0].id);
   const [selectedScenario, setSelectedScenario] = useState<Scenario>(SCENARIOS[0]);
   const [isCalling, setIsCalling] = useState<boolean>(false);
-  const [status, setStatus] = useState<string>('Idle'); // Idle, Speaking (AI), Listening (User), Thinking
+  const [status, setStatus] = useState<string>('Idle'); // Idle, Speaking, Listening, Thinking
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [recognition, setRecognition] = useState<any>(null);
   const [supportSpeech, setSupportSpeech] = useState<boolean>(true);
 
+  // إعداد ميزات المؤقت والتعليمات والتقييم الجانبي
+  const [timer, setTimer] = useState<number>(0);
+  const [showCheatSheet, setShowCheatSheet] = useState<boolean>(false);
+  const [hintText, setHintText] = useState<string | null>(null);
+  const [isGettingHint, setIsGettingHint] = useState<boolean>(false);
+  const [scorecard, setScorecard] = useState<Scorecard | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
+
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
+  // تحديث المؤقت الزمني أثناء المكالمة
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isCalling && status !== 'Idle') {
+      interval = setInterval(() => {
+        setTimer((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setTimer(0);
+    }
+    return () => clearInterval(interval);
+  }, [isCalling, status]);
+
+  // إعداد الـ Speech Recognition لمتصفح الطالب
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -145,6 +178,8 @@ export default function CallCenterSimulator() {
       alert("Please enter your Gemini API Key in the settings panel first!");
       return;
     }
+    setScorecard(null);
+    setHintText(null);
     setIsCalling(true);
     setChatHistory([{ sender: 'customer', text: selectedScenario.firstMessage }]);
     
@@ -153,7 +188,14 @@ export default function CallCenterSimulator() {
     });
   };
 
-  const endCall = () => {
+  const endCall = async () => {
+    if (chatHistory.length > 1) {
+      await generateScorecard();
+    }
+    resetCallState();
+  };
+
+  const resetCallState = () => {
     setIsCalling(false);
     setStatus('Idle');
     setChatHistory([]);
@@ -168,14 +210,14 @@ export default function CallCenterSimulator() {
       setStatus('Listening (User)');
       try {
         recognition.start();
-      } catch (e) {
-        // Prevent crashes if recognition is already running
-      }
+      } catch (e) {}
     }
   };
 
+  // معالجة رد العميل
   const handleAgentResponse = async (agentText: string) => {
     setStatus('Thinking');
+    setHintText(null);
     if (recognition) recognition.stop();
 
     try {
@@ -216,147 +258,429 @@ export default function CallCenterSimulator() {
 
     } catch (error) {
       console.error("API Error: ", error);
-      alert("Error communicating with Gemini. Please check your API key.");
-      endCall();
+      alert("Error communicating with Gemini.");
+      resetCallState();
     }
   };
 
+  // ميزة طلب تلميح ذكي أثناء المكالمة
+  const getHint = async () => {
+    if (!isCalling || status === 'Thinking' || status === 'Speaking (AI)') return;
+    setIsGettingHint(true);
+    setHintText(null);
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+      
+      const conversationText = chatHistory.map(msg => `${msg.sender === 'customer' ? 'Customer' : 'Agent'}: ${msg.text}`).join('\n');
+      
+      const prompt = `Based on the following call center conversation history between a customer and an agent, suggest ONE brief, professional, and empathetic response the agent should say next. Keep the suggestion under 20 words.
+      
+      Conversation History:
+      ${conversationText}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        })
+      });
+
+      const data = await res.json();
+      const hint = data.candidates?.[0]?.content?.parts?.[0]?.text || "Try apologizing and asking for details.";
+      setHintText(hint);
+
+    } catch (e) {
+      setHintText("Error getting hint. Try apologizing or active listening.");
+    } finally {
+      setIsGettingHint(false);
+    }
+  };
+
+  // معالجة التقييم النهائي بعد إنهاء المكالمة
+  const generateScorecard = async () => {
+    setIsEvaluating(true);
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+      const conversationText = chatHistory.map(msg => `${msg.sender === 'customer' ? 'Customer' : 'Agent'}: ${msg.text}`).join('\n');
+
+      const prompt = `Evaluate the following call center roleplay conversation between a customer and an agent.
+      Format your response strictly as a JSON object, with no markdown formatting, no conversational text, and no backticks.
+      
+      The JSON must contain these exact keys:
+      {
+        "score": (0-100 total sum of below metrics),
+        "greeting": (0-10 based on greeting professionalism),
+        "empathy": (0-25 based on showing apology/understanding),
+        "verification": (0-15 based on asking for order/account details politely),
+        "solution": (0-30 based on providing clear resolution/alternatives),
+        "closing": (0-20 based on closing professionally),
+        "grammarFeedback": "Detailed string listing grammar/pronunciation corrections for the agent",
+        "generalFeedback": "A summary of performance and how to improve"
+      }
+
+      Conversation:
+      ${conversationText}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        })
+      });
+
+      const data = await res.json();
+      let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      
+      // تنظيف النص في حال قيام الموديل بإرجاع كود ماركداون
+      responseText = responseText.replace(/```json|```/g, '').trim();
+      const card: Scorecard = JSON.parse(responseText);
+      setScorecard(card);
+
+    } catch (e) {
+      console.error(e);
+      alert("Error generating scorecard. You did great in your call though!");
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
+
+  const formatTime = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="min-h-screen bg-slate-900 text-white font-sans p-6 flex flex-col items-center justify-center">
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="relative min-h-screen bg-slate-900 text-white font-sans p-4 flex items-center justify-center">
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-4 gap-6">
         
-        {/* Settings Panel */}
-        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between">
-          <div>
-            <h2 className="text-xl font-bold mb-4 text-blue-400">⚡ Simulator Settings</h2>
+        {/* اللوحة الجانبية: الإعدادات والتحكم */}
+        <div className="lg:col-span-1 bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between space-y-4">
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-blue-400 flex items-center">
+              ⚙️ Simulator Control
+            </h2>
             
-            <div className="mb-5">
-              <label className="block text-sm font-semibold mb-2 text-slate-300">Google Gemini API Key:</label>
+            {/* إدخال مفتاح الـ API */}
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-slate-300">Google Gemini API Key:</label>
               <input
                 type="password"
                 placeholder="Enter your API Key..."
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 disabled={isCalling}
-                className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 disabled:opacity-50 text-white"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs focus:outline-none focus:border-blue-500 text-white"
               />
             </div>
 
-            <div className="mb-5">
-              <label className="block text-sm font-semibold mb-2 text-slate-300">Select AI Model:</label>
+            {/* اختيار الموديل */}
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-slate-300">Select AI Model:</label>
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 disabled={isCalling}
-                className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 disabled:opacity-50 text-white text-sm"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 text-xs text-white"
               >
                 {GEMINI_MODELS.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name}
-                  </option>
+                  <option key={model.id} value={model.id}>{model.name}</option>
                 ))}
               </select>
             </div>
 
-            <div className="mb-5">
-              <label className="block text-sm font-semibold mb-2 text-slate-300">Select Customer Scenario:</label>
-              <div className="space-y-2">
+            {/* اختيار السيناريو */}
+            <div>
+              <label className="block text-xs font-semibold mb-1 text-slate-300">Select Customer Scenario:</label>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {SCENARIOS.map((sc) => (
                   <button
                     key={sc.id}
                     onClick={() => setSelectedScenario(sc)}
                     disabled={isCalling}
-                    className={`w-full text-left p-3 rounded-lg border text-sm transition ${
+                    className={`w-full text-left p-2.5 rounded-lg border text-xs transition ${
                       selectedScenario.id === sc.id
                         ? 'border-blue-500 bg-blue-950/40 text-blue-300 font-semibold'
                         : 'border-slate-700 bg-slate-950/20 text-slate-300 hover:bg-slate-700'
                     } disabled:opacity-50`}
                   >
                     <p className="font-bold">{sc.title}</p>
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{sc.description}</p>
+                    <p className="text-[10px] text-slate-400 mt-1 line-clamp-1">{sc.description}</p>
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {!supportSpeech && (
-            <div className="bg-red-950/50 border border-red-800 text-red-200 p-3 rounded-lg text-xs">
-              ⚠️ Your browser does not support Speech Recognition. Please use Google Chrome or Safari.
-            </div>
-          )}
+          {/* تفعيل نافذة التعليمات المساعدة */}
+          <button
+            onClick={() => setShowCheatSheet(!showCheatSheet)}
+            className="w-full py-2.5 bg-slate-700 hover:bg-slate-650 text-white rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5"
+          >
+            <span>{showCheatSheet ? '❌ Hide Cheat Sheet' : '📖 Open Cheat Sheet'}</span>
+          </button>
         </div>
 
-        {/* Main Simulator Panel */}
-        <div className="md:col-span-2 bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col h-[650px] justify-between">
+        {/* لوحة المحاكاة الصوتية الرئيسية */}
+        <div className="lg:col-span-3 bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl flex flex-col h-[650px] justify-between relative overflow-hidden">
           
-          <div className="flex items-center justify-between border-b border-slate-700 pb-4">
+          {/* رأس الشاشة والمؤقت */}
+          <div className="flex items-center justify-between border-b border-slate-700 pb-3">
             <div>
-              <h1 className="text-2xl font-black text-white">Call Center AI Agent</h1>
-              <p className="text-sm text-slate-400">Practice your speaking, active listening, and empathy skills.</p>
+              <h1 className="text-xl font-black text-white">Call Simulator Dashboard</h1>
+              <p className="text-xs text-slate-400">Practice live client negotiation with AI.</p>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <span className={`w-3 h-3 rounded-full ${
-                status === 'Listening (User)' ? 'bg-green-500 animate-pulse' :
-                status === 'Speaking (AI)' ? 'bg-red-500 animate-pulse' :
-                status === 'Thinking' ? 'bg-yellow-500 animate-bounce' : 'bg-slate-500'
-              }`} />
-              <span className="text-xs font-mono text-slate-300 uppercase">{status}</span>
+            {/* مؤقت المكالمة والمؤشر الفوري */}
+            <div className="flex items-center space-x-4">
+              <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-sm text-yellow-400">
+                ⏱️ AHT: {formatTime(timer)}
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <span className={`w-2.5 h-2.5 rounded-full ${
+                  status === 'Listening (User)' ? 'bg-green-500 animate-pulse' :
+                  status === 'Speaking (AI)' ? 'bg-red-500 animate-pulse' :
+                  status === 'Thinking' ? 'bg-yellow-500 animate-bounce' : 'bg-slate-500'
+                }`} />
+                <span className="text-[10px] font-mono text-slate-300 uppercase">{status}</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto my-4 p-4 bg-slate-950/50 rounded-xl space-y-4 border border-slate-900">
-            {chatHistory.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-2">
-                <svg className="w-12 h-12 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                <p>Click "Start Call Simulation" to begin training.</p>
-              </div>
-            ) : (
-              chatHistory.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex flex-col ${msg.sender === 'customer' ? 'items-start' : 'items-end'}`}
-                >
-                  <span className="text-[10px] text-slate-500 mb-1 uppercase font-semibold">
-                    {msg.sender === 'customer' ? '🚨 Customer (AI)' : '🗣️ Agent (You)'}
-                  </span>
-                  <div className={`max-w-lg px-4 py-2.5 rounded-2xl text-sm ${
-                    msg.sender === 'customer'
-                      ? 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700'
-                      : 'bg-blue-600 text-white rounded-tr-none'
-                  }`}>
-                    {msg.text}
-                  </div>
+          {/* شاشة السجل وعرض المحادثة والـ Cheat Sheet بشكل متزامن */}
+          <div className="flex-1 flex gap-4 my-3 overflow-hidden relative">
+            
+            {/* السجل */}
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-950/50 rounded-xl space-y-3.5 border border-slate-900">
+              {chatHistory.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-2">
+                  <span className="text-4xl">📞</span>
+                  <p className="text-xs">Select your configuration and start the call simulation.</p>
                 </div>
-              ))
+              ) : (
+                chatHistory.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex flex-col ${msg.sender === 'customer' ? 'items-start' : 'items-end'}`}
+                  >
+                    <span className="text-[9px] text-slate-500 mb-0.5 uppercase font-semibold">
+                      {msg.sender === 'customer' ? '🚨 Customer (AI)' : '🗣️ Agent (You)'}
+                    </span>
+                    <div className={`max-w-md px-3.5 py-2 rounded-xl text-xs leading-relaxed ${
+                      msg.sender === 'customer'
+                        ? 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700'
+                        : 'bg-blue-600 text-white rounded-tr-none'
+                    }`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* لوحة العبارات المساعدة المنسدلة والمنسقة (Cheat Sheet Drawer) */}
+            {showCheatSheet && (
+              <div className="w-72 bg-slate-950 border border-slate-800 p-4 rounded-xl overflow-y-auto text-xs space-y-3 animate-slide-in">
+                <h3 className="font-bold text-blue-400 border-b border-slate-800 pb-1.5 flex items-center gap-1">
+                  💡 Empathy Cheat Sheet
+                </h3>
+                
+                <div>
+                  <h4 className="font-semibold text-slate-300 mb-1">📞 Opening:</h4>
+                  <p className="text-slate-400 bg-slate-900 p-1.5 rounded text-[10px]">
+                    "Thank you for calling [Elite], this is [Name]. How can I help you today?"
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-red-400 mb-1">❤️ Empathy & Apology:</h4>
+                  <p className="text-slate-400 bg-slate-900 p-1.5 rounded text-[10px] mb-1">
+                    "I understand your frustration. Let me fix this for you."
+                  </p>
+                  <p className="text-slate-400 bg-slate-900 p-1.5 rounded text-[10px]">
+                    "I apologize for this inconvenience. I will resolve it."
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-yellow-400 mb-1">🔒 Verification:</h4>
+                  <p className="text-slate-400 bg-slate-900 p-1.5 rounded text-[10px]">
+                    "May I have your full name and order ID politely, please?"
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold text-green-400 mb-1">🛑 Hold Process:</h4>
+                  <p className="text-slate-400 bg-slate-900 p-1.5 rounded text-[10px]">
+                    "May I place you on a brief hold for one minute to check?"
+                  </p>
+                </div>
+              </div>
             )}
-            <div ref={chatEndRef} />
           </div>
 
-          <div className="flex items-center space-x-4">
-            {!isCalling ? (
-              <button
-                onClick={startCall}
-                disabled={!supportSpeech}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl font-bold text-lg transition shadow-lg shadow-blue-950/50 hover:shadow-blue-900/40"
-              >
-                Start Call Simulation 📞
-              </button>
-            ) : (
-              <button
-                onClick={endCall}
-                className="w-full py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-lg transition shadow-lg shadow-red-950/50 hover:shadow-red-900/40"
-              >
-                End Call 🛑
-              </button>
+          {/* لوحة التحكم الصوتية والتلميحات */}
+          <div className="space-y-2">
+            
+            {/* عرض التلميح الذكي في حال تفعيله */}
+            {hintText && (
+              <div className="bg-blue-950/40 border border-blue-900 p-2.5 rounded-lg text-xs text-blue-300 animate-fade-in flex justify-between items-center">
+                <p>💡 <strong>Suggested Reply:</strong> "{hintText}"</p>
+                <button onClick={() => setHintText(null)} className="text-blue-500 hover:text-white font-bold ml-2">×</button>
+              </div>
             )}
+
+            <div className="flex gap-3">
+              {/* زر طلب التلميح */}
+              {isCalling && (
+                <button
+                  onClick={getHint}
+                  disabled={isGettingHint || status === 'Thinking' || status === 'Speaking (AI)'}
+                  className="px-4 py-3 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                >
+                  {isGettingHint ? '🌀 Loading...' : '💡 Get Hint'}
+                </button>
+              )}
+
+              {/* أزرار الاتصال الأساسية */}
+              {!isCalling ? (
+                <button
+                  onClick={startCall}
+                  disabled={!supportSpeech}
+                  className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition shadow-lg shadow-blue-950/50"
+                >
+                  Start Call Simulation 📞
+                </button>
+              ) : (
+                <button
+                  onClick={endCall}
+                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl transition shadow-lg shadow-red-950/50"
+                >
+                  End Call & Get Scorecard 🛑
+                </button>
+              )}
+            </div>
           </div>
 
         </div>
       </div>
+
+      {/* لوحة التقييم التفصيلي النهائي (Scorecard Modal Overlay) */}
+      {(isEvaluating || scorecard) && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-slate-800 border border-slate-700 w-full max-w-2xl p-6 rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
+            
+            {/* شاشة التحميل */}
+            {isEvaluating ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <h2 className="text-lg font-bold text-blue-400 animate-pulse">AI Agent is Evaluating Your Call...</h2>
+                <p className="text-xs text-slate-400">Analyzing metrics, empathy, structure and grammar.</p>
+              </div>
+            ) : (
+              // عرض التقييم
+              scorecard && (
+                <div className="space-y-5">
+                  <div className="flex justify-between items-center border-b border-slate-700 pb-3">
+                    <h2 className="text-xl font-black text-blue-400">📊 QA Evaluation Scorecard</h2>
+                    <span className="bg-blue-950 border border-blue-800 text-blue-300 font-mono text-xs px-2.5 py-1 rounded-lg">AHT Duration: {formatTime(timer)}</span>
+                  </div>
+
+                  {/* دائرة النتيجة الإجمالية */}
+                  <div className="flex flex-col md:flex-row items-center justify-around gap-4 bg-slate-950/50 p-4 rounded-xl border border-slate-900">
+                    <div className="flex flex-col items-center">
+                      <div className="w-24 h-24 rounded-full border-4 border-blue-500 flex flex-col items-center justify-center">
+                        <span className="text-3xl font-black text-white">{scorecard.score}</span>
+                        <span className="text-[10px] uppercase text-slate-400 font-bold">out of 100</span>
+                      </div>
+                      <h3 className="font-bold text-slate-200 mt-2">Overall Score</h3>
+                    </div>
+
+                    {/* تفصيل النقاط حسب المعايير المعيارية */}
+                    <div className="flex-1 space-y-2 text-xs w-full max-w-sm">
+                      <div>
+                        <div className="flex justify-between text-slate-300 mb-0.5">
+                          <span>Greeting Professionalism:</span>
+                          <span className="font-bold">{scorecard.greeting} / 10</span>
+                        </div>
+                        <div className="w-full bg-slate-850 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-blue-500 h-full" style={{ width: `${(scorecard.greeting / 10) * 100}%` }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-slate-300 mb-0.5">
+                          <span>Empathy & De-escalation:</span>
+                          <span className="font-bold">{scorecard.empathy} / 25</span>
+                        </div>
+                        <div className="w-full bg-slate-850 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-red-500 h-full" style={{ width: `${(scorecard.empathy / 25) * 100}%` }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-slate-300 mb-0.5">
+                          <span>Identity Verification:</span>
+                          <span className="font-bold">{scorecard.verification} / 15</span>
+                        </div>
+                        <div className="w-full bg-slate-850 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-yellow-500 h-full" style={{ width: `${(scorecard.verification / 15) * 100}%` }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-slate-300 mb-0.5">
+                          <span>Problem Solving & Solution:</span>
+                          <span className="font-bold">{scorecard.solution} / 30</span>
+                        </div>
+                        <div className="w-full bg-slate-850 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-green-500 h-full" style={{ width: `${(scorecard.solution / 30) * 100}%` }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-slate-300 mb-0.5">
+                          <span>Professional Closing:</span>
+                          <span className="font-bold">{scorecard.closing} / 20</span>
+                        </div>
+                        <div className="w-full bg-slate-850 h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-indigo-500 h-full" style={{ width: `${(scorecard.closing / 20) * 100}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* تفاصيل الملاحظات اللغوية والتقييم العام */}
+                  <div className="space-y-3.5 text-xs">
+                    <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                      <h4 className="font-bold text-blue-400 mb-1 flex items-center gap-1">📝 Language & Grammar Corrections:</h4>
+                      <p className="text-slate-300 leading-relaxed font-mono text-[11px]">{scorecard.grammarFeedback}</p>
+                    </div>
+
+                    <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                      <h4 className="font-bold text-green-400 mb-1 flex items-center gap-1">🌟 General Tutor Feedback:</h4>
+                      <p className="text-slate-300 leading-relaxed font-mono text-[11px]">{scorecard.generalFeedback}</p>
+                    </div>
+                  </div>
+
+                  {/* إغلاق التقييم */}
+                  <button
+                    onClick={() => setScorecard(null)}
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl transition"
+                  >
+                    Close Scorecard & Continue
+                  </button>
+                </div>
+              )
+            )}
+
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+    }

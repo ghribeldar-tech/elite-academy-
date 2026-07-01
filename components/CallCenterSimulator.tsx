@@ -69,7 +69,7 @@ const GEMINI_MODELS = [
 ];
 
 export default function CallCenterSimulator() {
-  const [apiKey, setApiKey] = useState<string>('');
+  const [apiKey, setApiKey] = useState<string>('AIzaSyA7zdJexwQWNFsIL_70Z7bGpCElDyytueE');
   const [selectedModel, setSelectedModel] = useState<string>(GEMINI_MODELS[0].id);
   const [selectedScenario, setSelectedScenario] = useState<Scenario>(SCENARIOS[0]);
   const [isCalling, setIsCalling] = useState<boolean>(false);
